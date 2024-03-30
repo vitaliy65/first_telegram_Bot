@@ -112,7 +112,7 @@ public class MessageProcessor
         {
             if (item.RestaurantId == restaurant.Id)
             {
-                var replyKeyboardMarkup = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("В кошик 🛒", $"inBasket_{item.ProductId}"));
+                var replyKeyboardMarkup = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("В кошик 🛒", $"addToBasket_{item.ProductId}"));
 
                 string message = CreateProductText(item);
                 var _message = await _botClient.SendPhotoAsync(chatId: callbackQuery.Message.Chat,

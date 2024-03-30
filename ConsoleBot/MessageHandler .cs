@@ -48,11 +48,11 @@ namespace ConsoleBot
         {
             if (callbackQuery != null)
             {
-                if (callbackQuery.Data.Contains("inBasket"))
+                if (callbackQuery.Data.Contains("addToBasket"))
                 {
                     await _basketManager.PutInBasketAsync(callbackQuery, cancellationToken);
                 }
-                else if (callbackQuery.Data.Contains("addToBasket") && callbackQuery.Data.Contains("createOrder"))
+                else if (callbackQuery.Data.Contains("createOrder"))
                 {
                     
                 }

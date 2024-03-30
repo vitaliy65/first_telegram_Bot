@@ -27,13 +27,13 @@ public class BasketManager
         {
             _userBaskets[callbackQuery.Message.Chat.Id].Add(product);
 
-            var replyKeyboardMarkup = new InlineKeyboardMarkup(new[] { new[] { InlineKeyboardButton.WithCallbackData("Added to Basket ✅", "addToBasket") } });
+            var replyKeyboardMarkup = new InlineKeyboardMarkup(new[] { new[] { InlineKeyboardButton.WithCallbackData("Added to Basket ✅", "addedToBasket") } });
 
             await _botClient.EditMessageCaptionAsync(callbackQuery.Message.Chat,
-                                                    callbackQuery.Message.MessageId,
-                                                    callbackQuery.Message.Caption,
-                                                    replyMarkup: replyKeyboardMarkup,
-                                                    parseMode: ParseMode.Html);
+                                                     callbackQuery.Message.MessageId,
+                                                     callbackQuery.Message.Caption,
+                                                     replyMarkup: replyKeyboardMarkup,
+                                                     parseMode: ParseMode.Html);
         }
     }
 }
