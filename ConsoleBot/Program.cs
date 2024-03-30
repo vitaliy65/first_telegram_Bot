@@ -1,4 +1,7 @@
 ﻿using Telegram.Bot;
+using Telegram.Bot.Types;
+using Курсовая_работа.Controller;
+using Курсовая_работа.model;
 
 namespace ConsoleBot
 {
@@ -8,7 +11,7 @@ namespace ConsoleBot
         {
             var botClient = new TelegramBotClient("7061907936:AAF3v-jlo8SFGE1qW4Jb8KDOH7P_xg8GDNc");
 
-            IUpdateHandler updateHandler = new MessageHandler();
+            IUpdateHandler updateHandler = new MessageHandler(botClient);
             IPollingErrorHandler errorHandler = new ErrorHandler();
 
             botClient.StartReceiving(updateHandler.HandleUpdateAsync, errorHandler.HandlePollingErrorAsync);
