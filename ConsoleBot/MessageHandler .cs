@@ -108,7 +108,11 @@ namespace ConsoleBot
                     var replyKeyboardMarkup = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("В кошик 🛒", $"inBasket_{item.ProductId}"));
 
                     string message = CreateProductText(item);
-                    var _message = await botClient.SendTextMessageAsync(chatId, message, replyMarkup: replyKeyboardMarkup, cancellationToken: cancellationToken);
+                    var _message = await botClient.SendPhotoAsync(chatId: chatId,
+                                                                  photo: InputFile.FromUri(message),
+                                                                  caption: message,
+                                                                  parseMode: ParseMode.Html,
+                                                                  cancellationToken: cancellationToken);
                     rememberedMessages.Add(_message.MessageId);
                 }
             }
