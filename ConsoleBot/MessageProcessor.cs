@@ -12,6 +12,8 @@ public class MessageProcessor
     private readonly RestaurantController _restaurantController;
     private readonly Dictionary<long, List<Product>> _userBaskets;
 
+    private bool LocationRequested = false;
+
     private List<int> _rememberMassages;
 
     public MessageProcessor(ITelegramBotClient botClient, ProductController productController, RestaurantController restaurantController, Dictionary<long, List<Product>> userBaskets)
@@ -58,6 +60,7 @@ public class MessageProcessor
         {
             case "/start":
                 await SendStartMessageAsync(message.Chat, cancellationToken);
+                if(!LocationRequested) await RequestLocationAsync(message.Chat, cancellationToken);
                 break;
             case "/stop":
                 await SendStopMessageAsync(message.Chat, cancellationToken);
@@ -80,25 +83,42 @@ public class MessageProcessor
 
     private async Task HandleButtonMessageAsync(Message message, CancellationToken cancellationToken)
     {
+        var locationRequired = new ReplyKeyboardMarkup(new KeyboardButton("Тиць сюди") { RequestLocation = true });
+        locationRequired.ResizeKeyboard = true;
+
         var replyKeyboardMarkup = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "Ресторани", "Кошик" } });
         replyKeyboardMarkup.ResizeKeyboard = true;
+
 
         // Check if the received message matches any of the expected button labels
         switch (message.Text)
         {
             case "Ресторани":
-                await SendRestaurantsMessageAsync(message.Chat, cancellationToken);
+                if (LocationRequested) await SendRestaurantsMessageAsync(message.Chat, cancellationToken);
                 break;
             case "Кошик":
-                await SendBasketMessageAsync(message.Chat, cancellationToken);
+                if (LocationRequested) await SendBasketMessageAsync(message.Chat, cancellationToken);
                 break;
             default:
-                await _botClient.SendTextMessageAsync(message.Chat, "Я тебе не розумію... виберіть команду будь ласка!", replyMarkup: replyKeyboardMarkup, cancellationToken: cancellationToken);
+                Message message1 = null;
+                if (LocationRequested)
+                    message1 = await _botClient.SendTextMessageAsync(message.Chat,
+                                                                     "Я тебе не розумію... виберіть команду будь ласка!",
+                                                                     replyMarkup: replyKeyboardMarkup,
+                                                                     cancellationToken: cancellationToken);
+                else
+                    message1 = await _botClient.SendTextMessageAsync(message.Chat,
+                                                                     "Я тебе не розумію... виберіть команду будь ласка!",
+                                                                     replyMarkup: locationRequired,
+                                                                     cancellationToken: cancellationToken);
+                RememberMessage(message1.MessageId, message1.Chat, cancellationToken);
                 break;
         }
     }
 
-    public  async Task ShowProducts(CallbackQuery callbackQuery, CancellationToken cancellationToken)
+
+
+    public async Task ShowProducts(CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
         ClearRememberedMessages(callbackQuery.Message.Chat, cancellationToken);
         // Отправляем пустое сообщение для отключения свечения кнопки
@@ -126,15 +146,51 @@ public class MessageProcessor
         }
     }
 
-    private async Task SendStartMessageAsync(ChatId chatId, CancellationToken cancellationToken)
+    public async Task RequestLocationAsync(ChatId chatId, CancellationToken cancellationToken)
+    {
+        var request = new ReplyKeyboardMarkup(new KeyboardButton("Тиць сюди") { RequestLocation = true });
+        request.ResizeKeyboard = true;
+
+        var message = await _botClient.SendTextMessageAsync(
+            chatId,
+            "Надішліть вашу локацію будьласка, це краще робити зі смартфону, в версії для PC така функція не доступна!",
+            replyMarkup: request,
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task AcceptRequestLocationAsync(ChatId chatId, CancellationToken cancellationToken)
     {
         var replyKeyboardMarkup = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "Ресторани", "Кошик" } });
         replyKeyboardMarkup.ResizeKeyboard = true;
-        var message = await _botClient.SendTextMessageAsync(chatId, "Доброго дня, виберіть команду.", replyMarkup: replyKeyboardMarkup, cancellationToken: cancellationToken);
+
+        var message = await _botClient.SendTextMessageAsync(
+            chatId,
+            "Дякую, зараз ми можемо дізнатися чи знаходитеся ви в зоні доставки!",
+            replyMarkup: replyKeyboardMarkup,
+            cancellationToken: cancellationToken);
+
+        LocationRequested = true;
+    }
+
+
+
+    private async Task SendStartMessageAsync(ChatId chatId, CancellationToken cancellationToken)
+    {
+        ClearRememberedMessages(chatId, cancellationToken);
+        var replyKeyboardMarkup = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "Ресторани", "Кошик" } });
+        replyKeyboardMarkup.ResizeKeyboard = true;
+
+        if (LocationRequested)
+        {
+            await _botClient.SendTextMessageAsync(chatId, "Доброго дня, виберіть команду.", replyMarkup: replyKeyboardMarkup, cancellationToken: cancellationToken);
+        }
+        else
+            await _botClient.SendTextMessageAsync(chatId, "Доброго дня, виберіть команду.", cancellationToken: cancellationToken);
     }
 
     private async Task SendStopMessageAsync(ChatId chatId, CancellationToken cancellationToken)
     {
+        ClearRememberedMessages(chatId, cancellationToken);
         var replyKeyboardMarkup = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "/start" }, });
         replyKeyboardMarkup.ResizeKeyboard = true;
         var message = await _botClient.SendTextMessageAsync(chatId, "Гарного вам дня, ще побачимось!", replyMarkup: replyKeyboardMarkup, cancellationToken: cancellationToken);
@@ -143,7 +199,8 @@ public class MessageProcessor
 
     private async Task SendHelpMessageAsync(ChatId chatId, CancellationToken cancellationToken)
     {
-        var message = await _botClient.SendTextMessageAsync(chatId, "Для початку роботи вам потрібно натиснути на кнопку під полем вводу повідомлення 'Ресторани'!", cancellationToken: cancellationToken);
+        ClearRememberedMessages(chatId, cancellationToken);
+        var message = await _botClient.SendTextMessageAsync(chatId, "Для початку роботи вам потрібно натиснути на кнопку під полем вводу повідомлення!", cancellationToken: cancellationToken);
         RememberMessage(message.MessageId, chatId, cancellationToken);
     }
 
@@ -177,6 +234,7 @@ public class MessageProcessor
 
     private async Task ClearBasketAsync(ChatId chatId, CancellationToken cancellationToken)
     {
+        ClearRememberedMessages(chatId, cancellationToken);
         if (_userBaskets[(long)chatId.Identifier].Count == 0)
         {
             var message = await _botClient.SendTextMessageAsync(chatId, "Здається ваш кошик і так порожній 😄.");
@@ -192,6 +250,7 @@ public class MessageProcessor
 
     private async Task SendUnknownCommandMessageAsync(ChatId chatId, CancellationToken cancellationToken)
     {
+        ClearRememberedMessages(chatId, cancellationToken);
         var message = await _botClient.SendTextMessageAsync(chatId, "Будь ласка виберіть команду.", cancellationToken: cancellationToken);
         RememberMessage(message.MessageId, chatId, cancellationToken);
     }
@@ -199,8 +258,8 @@ public class MessageProcessor
     private async Task SendRestaurantsMessageAsync(ChatId chatId, CancellationToken cancellationToken)
     {
         ClearRememberedMessages(chatId, cancellationToken);
-        List<InlineKeyboardButton[]> rows = new List<InlineKeyboardButton[]>();
-        List<InlineKeyboardButton> currentRow = new List<InlineKeyboardButton>();
+        var rows = new List<InlineKeyboardButton[]>();
+        var currentRow = new List<InlineKeyboardButton>();
 
         foreach (var restaurant in _restaurantController.GetElements())
         {
@@ -223,13 +282,8 @@ public class MessageProcessor
         RememberMessage(message.MessageId, chatId, cancellationToken);
     }
 
-    string CreateProductText(Product item)
-    {
-        string message = "Назва: " + item.Name + "\n" +
-                         "📝 Опис: " + item.Description + "\n" +
-                         "🤑 Ціна: " + item.Price + "грн\n";
-        return message;
-    }
+
+
 
     private void ClearRememberedMessages(ChatId chatId, CancellationToken cancellationToken)
     {
@@ -253,5 +307,16 @@ public class MessageProcessor
     private void RememberMessage(int messageId, ChatId chatId, CancellationToken cancellationToken)
     {
         _rememberMassages.Add(messageId);
+    }
+
+
+
+
+    string CreateProductText(Product item)
+    {
+        string message = "Назва: " + item.Name + "\n" +
+                         "📝 Опис: " + item.Description + "\n" +
+                         "🤑 Ціна: " + item.Price + "грн\n";
+        return message;
     }
 }
